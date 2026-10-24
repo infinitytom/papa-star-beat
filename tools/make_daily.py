@@ -8,36 +8,27 @@ so the chart is read straight off the music:
     long notes → hold)
   - drones fire on the snare / clap hits, drummers launch on crash downbeats
   - quiet passages get calm echoes, loud passages get bullets; walls mark big section changes
-Usage: python3 tools/make_daily.py <free-music checkout>
-Writes music/*.mp3 and js/daily.js
+Usage:
+  python3 tools/make_daily.py --src <free-music checkout>            rebuild everything from tools/daily_catalog.json
+  python3 tools/make_daily.py --src <free-music checkout> --add 2    publish the next 2 songs from tools/daily_queue.json
+Writes music/*.mp3, music/CREDITS.md, js/daily.js and the song table in README.md
 """
-import json, math, os, re, subprocess, sys
+import argparse, json, math, os, re, subprocess, sys
 import mido
+import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = sys.argv[1] if len(sys.argv) > 1 else "free-music"
-
-# offset = seconds into the MP3 where MIDI time 0 sits (measured by onset / beat-phase analysis)
-SONGS = [
-    dict(n=1, file="Surreptitious", slug="surreptitious", zh="蹑手蹑脚", offset=0.52, diff=1, grid=1.0, maxn=3,
-         desc="马林巴和贝斯悄悄走路。先跟着四分音符应答。"),
-    dict(n=2, file="Daybreak", slug="daybreak", zh="破晓", offset=0.035, diff=2, grid=0.5, maxn=4,
-         desc="合唱和弦乐的日出。旋律里的八分音符开始出现。"),
-    dict(n=3, file="Wild Waters", slug="wild-waters", zh="狂野水域", offset=0.53, diff=3, grid=0.5, maxn=5,
-         desc="合成器和贝斯翻浪。反拍、长音和鼓手一起来。"),
-    dict(n=4, file="Clowns", slug="clowns", zh="小丑嘉年华", offset=0.02, diff=4, grid=0.25, maxn=6,
-         desc="铃铛和管风琴的马戏团。本周最难的一首。"),
-]
-STORY = {
-    1: dict(intro=[["metro", "节拍回到银河以后，每天都有一场「每日演奏会」。"], ["metro", "今天的点歌是《蹑手蹑脚》。回声怪会照着旋律唱，你照着回应就好。"], ["pai", "嘘——轻轻地来。"]],
-            outro=[["metro", "一个音都没吵醒大家，干得漂亮。"], ["pai", "明天还来！"]]),
-    2: dict(intro=[["drum", "咚！今天的点歌是《破晓》，太阳要出来了！"], ["metro", "鼓手会跟着镲片砸下重音弹，记得在落地那拍按 B。"], ["pai", "早安，银河。"]],
-            outro=[["drum", "咚咚！太阳出来了，我的鼓也醒了。"], ["metro", "今天的演奏完成。"]]),
-    3: dict(intro=[["metro", "《狂野水域》的旋律在反拍上翻浪，比看起来难。"], ["boss", "我来听。唱错一个音，我会皱眉的。"], ["pai", "那就请团长听好啦。"]],
-            outro=[["boss", "……还不错，我决定明天也来。"], ["metro", "浪平了，星河很安静。"]]),
-    4: dict(intro=[["boss", "周末嘉年华！今天的点歌是《小丑嘉年华》。"], ["drum", "鼓手团也到齐了，咚！"], ["metro", "这是本周最难的一首，祝你好运，拍拍。"]],
-            outro=[["pai", "整个银河都在跟着拍子跳！"], ["sil", "……（远处的寂静里，好像有人跟着点了一下头。）"], ["metro", "下周的演奏会，还会有新的歌。"]]),
+CATALOG = os.path.join(ROOT, "tools", "daily_catalog.json")
+QUEUE = os.path.join(ROOT, "tools", "daily_queue.json")
+SETTINGS = {1: dict(grid=1.0, maxn=3), 2: dict(grid=0.5, maxn=4), 3: dict(grid=0.5, maxn=5), 4: dict(grid=0.25, maxn=6)}
+STORY_POOL = {   # generic lines for songs added later; {zh} is the song title
+    "intro": [[["metro", "今天的点歌是《{zh}》。"], ["pai", "准备好了，开演！"]],
+              [["drum", "咚！今天轮到《{zh}》，我来打鼓！"], ["metro", "回声怪会照着旋律唱，你照着回应。"]],
+              [["boss", "《{zh}》……这首我也会唱。"], ["pai", "那今天就合唱吧，团长。"]],
+              [["metro", "银河点歌台收到一首新歌：《{zh}》。"], ["metro", "鼓手跟着镲片砸重音弹，落地那拍按 B。"], ["pai", "交给我！"]]],
+    "outro": [[["metro", "《{zh}》演奏完成，听众都在鼓掌。"]], [["drum", "咚咚！明天也要来啊！"]], [["boss", "……合格。明天再来唱。"]], [["pai", "今天的拍子，一个都没漏！"]]],
 }
+
 FALLBACK = {1: ["0z 1z 2z", "0z 2z 3z", "0z 1z 2x"], 2: ["0z 1x 1.5x 2z", "0z 0.5z 1z 2x"], 3: ["0z 1.5z 2x 3z", "0.5z 1.5z 2x 3z"], 4: ["0z 0.5x 1z 1.5x 2z 3x", "0z 0.75z 1.5x 2.5z 3x"]}
 KICK, SNARE, CRASH = {35, 36}, {38, 39, 40}, {49, 52, 55, 57}
 
@@ -58,7 +49,7 @@ def analyse(path):
     return bpm, notes, nbars, m.length
 
 def build(song, bpm, notes, nbars):
-    d = song["diff"]
+    d = song["stars"]; song = {**SETTINGS[d], **song}
     pitched = [x for x in notes if x[3] != 9]
     drums = [x for x in notes if x[3] == 9]
     per_bar = lambda arr, b: [x for x in arr if b * 4 <= x[0] < b * 4 + 4]
@@ -128,25 +119,121 @@ def build(song, bpm, notes, nbars):
     bars[nbars - 2]["text"] = "演奏完成！"
     return bars
 
+# ---------------------------------------------------------------- audio checks for new songs
+def decode(path, sr=22050):
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"], capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32), sr
+def flux(x, H=128):
+    n = (len(x) - 1024) // H; w = np.hanning(1024)
+    S = np.log1p(np.abs(np.fft.rfft(np.stack([x[i * H:i * H + 1024] * w for i in range(n)]), axis=1)) * 10)
+    return np.r_[0, np.maximum(0, np.diff(S, axis=0)).sum(1)]
+
+def measure(mp3, bpm, notes):
+    """returns (offset_seconds, mp3_bpm, phase_spread) — offset is where MIDI time 0 sits in the MP3"""
+    x, sr = decode(mp3); H = 128; fl = flux(x, H); t = np.arange(len(fl)) * H / sr
+    per = 60 / bpm
+    best = max(((abs(np.sum(fl * np.exp(2j * np.pi * t / (60 / b)))), b) for b in np.arange(bpm * 0.97, bpm * 1.03, 0.02)))[1]
+    phases = []
+    for s0 in range(0, int(t[-1]) - 10, 15):
+        m = (t >= s0) & (t < s0 + 15); z = np.sum(fl[m] * np.exp(2j * np.pi * t[m] / per)); phases.append(np.angle(z))
+    zc = np.mean(np.exp(1j * np.array(phases)))
+    phase = (np.angle(zc) / (2 * np.pi)) % 1 * per - 0.012            # flux peaks trail onsets by ~half a window
+    env = np.convolve(np.abs(x), np.ones(256) / 256, "same"); first_audio = int(np.argmax(env > 0.01 * env.max())) / sr
+    first_note = min(n[0] for n in notes) * per
+    cand = first_audio - first_note
+    k = round((cand - phase) / per); off = phase + k * per
+    # refine: line the MIDI onsets up with the audio onsets within ±0.12 s of the estimate
+    fr = H / sr; train = np.zeros(len(fl)); fz = (fl - fl.mean()) / (fl.std() + 1e-9)
+    for beat, dur, p, ch, v in notes:
+        i = int(beat * per / fr)
+        if i < len(train): train[i] += (2 if ch == 9 else 1) * v / 127
+    best_lag, best_c = 0, -1e18
+    for lag in range(int((off - 0.12) / fr), int((off + 0.12) / fr) + 1):
+        c = float(np.dot(np.roll(train, lag), fz))
+        if c > best_c: best_c, best_lag = c, lag
+    off = best_lag * fr - 0.005            # flux onset lands ~half a hop late
+    return round(float(off), 3), float(best), float(1 - abs(zc))
+
+def midi_ok(path):
+    m = mido.MidiFile(path)
+    tempos = {msg.tempo for tr in m.tracks for msg in tr if msg.type == "set_tempo"}
+    sigs = {(msg.numerator, msg.denominator) for tr in m.tracks for msg in tr if msg.type == "time_signature"}
+    if len(tempos) > 1: return "tempo changes"
+    if sigs and sigs != {(4, 4)}: return f"meter {sigs}"
+    bpm = mido.tempo2bpm(next(iter(tempos))) if tempos else 120
+    if not 70 <= bpm <= 200: return f"bpm {bpm:.0f}"
+    if not 50 <= m.length <= 260: return f"length {m.length:.0f}s"
+    return None
+
+def auto_stars(bpm, notes, length):
+    dens = len([n for n in notes if n[3] != 9]) / max(1, length)
+    s = 1 + (bpm >= 112) + (dens > 14) + (bpm >= 140 or dens > 26)
+    return int(min(4, max(1, s)))
+
+def add_songs(src, n):
+    cat = json.load(open(CATALOG, encoding="utf8")); queue = json.load(open(QUEUE, encoding="utf8"))
+    added, rest = [], []
+    for q in queue:
+        if len(added) >= n or q.get("skip"): rest.append(q); continue
+        mid, mp3 = os.path.join(src, "midi", q["file"] + ".mid"), os.path.join(src, "mp3", q["file"] + ".mp3")
+        why = None if os.path.exists(mid) and os.path.exists(mp3) else "missing files"
+        why = why or midi_ok(mid)
+        if not why:
+            bpm, notes, nbars, length = analyse(mid)
+            off, mbpm, spread = measure(mp3, bpm, notes)
+            if abs(mbpm - bpm) / bpm > 0.004: why = f"mp3 tempo {mbpm:.2f} != midi {bpm:.2f}"
+            elif spread > 0.25: why = f"beat phase unstable ({spread:.2f})"
+        if why:
+            print(f"skip {q['file']}: {why}"); rest.append({**q, "skip": why}); continue
+        stars = auto_stars(bpm, notes, length); k = len(cat) % 4
+        song = {"n": len(cat) + 1, "file": q["file"], "slug": q["slug"], "zh": q["zh"], "offset": off, "stars": stars,
+                "desc": q.get("desc") or f"{'★' * stars}{'☆' * (4 - stars)} · {round(bpm)} BPM · Tanner Helland 的《{q['file']}》。",
+                "story": {kk: [[w, line.format(zh=q["zh"])] for w, line in STORY_POOL[kk][(k if kk == 'intro' else (k + 1)) % len(STORY_POOL[kk])]] for kk in ("intro", "outro")}}
+        cat.append(song); added.append(song)
+        print(f"added Day {song['n']} {q['file']} bpm={bpm:.1f} offset={off} stars={stars} phase_spread={spread:.2f}")
+    json.dump(cat, open(CATALOG, "w", encoding="utf8"), ensure_ascii=False, indent=1)
+    json.dump(rest, open(QUEUE, "w", encoding="utf8"), ensure_ascii=False, indent=1)
+    return added
+
+def write_credits(cat):
+    rows = "\n".join(f"| {s['slug']}.mp3 | {s['file']} | 重新编码为 128kbps MP3，内容未改动 |" for s in cat)
+    open(os.path.join(ROOT, "music", "CREDITS.md"), "w", encoding="utf8").write(
+        "# 音乐署名\n\n本目录中的歌曲均由 **Tanner Helland** 创作，来自 <https://github.com/tannerhelland/free-music>（另见 <https://tannerhelland.com/music.html>），\n"
+        "以 [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/) 授权。\n\n"
+        "| 文件 | 原曲名 | 改动 |\n|---|---|---|\n" + rows + "\n\n游戏谱面（`js/daily.js`）由 `tools/make_daily.py` 依据作者公开的同名 MIDI 生成。\n")
+    readme = os.path.join(ROOT, "README.md")
+    if os.path.exists(readme):
+        r = open(readme, encoding="utf8").read()
+        table = "| 天 | 曲目 | BPM |\n|---|---|---|\n" + "\n".join(f"| Day {s['n']} · {s['zh']} | “{s['file']}” — Tanner Helland | {s.get('bpm', '')} |" for s in cat)
+        r = re.sub(r"<!-- daily:start -->.*?<!-- daily:end -->", "<!-- daily:start -->\n" + table + "\n<!-- daily:end -->", r, flags=re.S)
+        open(readme, "w", encoding="utf8").write(r)
+
 def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("--src", default="free-music"); ap.add_argument("--add", type=int, default=0)
+    a = ap.parse_args()
+    if a.add: add_songs(a.src, a.add)
+    cat = json.load(open(CATALOG, encoding="utf8"))
     os.makedirs(os.path.join(ROOT, "music"), exist_ok=True)
     out = []
-    for s in SONGS:
-        bpm, notes, nbars, length = analyse(os.path.join(SRC, "midi", s["file"] + ".mid"))
+    for s in cat:
+        bpm, notes, nbars, length = analyse(os.path.join(a.src, "midi", s["file"] + ".mid"))
+        s["bpm"] = round(bpm, 2)
         bars = build(s, bpm, notes, nbars)
         mp3 = os.path.join(ROOT, "music", s["slug"] + ".mp3")
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", os.path.join(SRC, "mp3", s["file"] + ".mp3"), "-codec:a", "libmp3lame", "-b:a", "128k", "-ar", "44100", mp3], check=True)
+        if not os.path.exists(mp3):
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", os.path.join(a.src, "mp3", s["file"] + ".mp3"), "-codec:a", "libmp3lame", "-b:a", "128k", "-ar", "44100", mp3], check=True)
         echoes = sum(1 for b in bars if b.get("echo")); drones = sum(1 for b in bars if b.get("drones")); drummers = sum(1 for b in bars if b.get("drummer")); walls = sum(1 for b in bars if b.get("wall"))
-        print(f"{s['file']:14s} bpm={bpm:.1f} bars={nbars} echo={echoes} drones={drones} drummer={drummers} wall={walls} mp3={os.path.getsize(mp3)//1024}KB")
+        print(f"Day {s['n']:2d} {s['file'][:20]:20s} bpm={bpm:.1f} bars={nbars} echo={echoes} drones={drones} drummer={drummers} wall={walls}")
         out.append({
             "id": f"daily-{s['slug']}", "title": f"Day {s['n']} · {s['zh']}", "author": "Tanner Helland（音乐）", "desc": s["desc"],
             "bpm": round(bpm, 2), "music": {"type": "url", "url": f"music/{s['slug']}.mp3", "offset": s["offset"],
                                             "credit": f"“{s['file']}” by Tanner Helland · CC BY 4.0 · tannerhelland.com/music（重新编码为 128kbps，未改动内容）"},
-            "story": STORY[s["n"]], "bars": bars, "boss": None, "day": s["n"], "stars": s["diff"], "original": s["file"],
+            "story": s["story"], "bars": bars, "boss": None, "day": s["n"], "stars": s["stars"], "original": s["file"],
         })
     js = "// Generated by tools/make_daily.py — 每日演奏: songs by Tanner Helland (CC BY 4.0), charts read from the songs' MIDI\nexport const DAILY = " + json.dumps(out, ensure_ascii=False) + ";\n"
     open(os.path.join(ROOT, "js", "daily.js"), "w", encoding="utf8").write(js)
-    print("wrote js/daily.js")
+    write_credits(cat)
+    print("wrote js/daily.js with", len(out), "songs")
 
 if __name__ == "__main__":
     main()

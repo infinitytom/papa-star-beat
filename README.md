@@ -72,14 +72,16 @@ anon key 本来就是公开的。数据库开启了行级安全：任何人都�
 
 **每日演奏**使用 [Tanner Helland](https://tannerhelland.com/music.html) 的免费音乐（[free-music](https://github.com/tannerhelland/free-music)，[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)），仅重新编码为 128kbps MP3，未改动内容：
 
+<!-- daily:start -->
 | 天 | 曲目 | BPM |
 |---|---|---|
 | Day 1 · 蹑手蹑脚 | “Surreptitious” — Tanner Helland | 120 |
 | Day 2 · 破晓 | “Daybreak” — Tanner Helland | 120 |
 | Day 3 · 狂野水域 | “Wild Waters” — Tanner Helland | 115.2 |
 | Day 4 · 小丑嘉年华 | “Clowns” — Tanner Helland | 120 |
+<!-- daily:end -->
 
-谱面由 `tools/make_daily.py` 从同名 MIDI 自动生成（MIDI 给出精确的节拍网格，音频起点偏移用起音检测测量），想加歌可以照着改。
+谱面由 `tools/make_daily.py` 从同名 MIDI 自动生成（MIDI 给出精确的节拍网格，音频起点偏移用起音检测测量）。新歌排在 `tools/daily_queue.json` 里，`--add N` 会检查节拍、测偏移、定难度后加入下一天；官方每周更新。
 
 - 内置关卡的音乐是用 Web Audio 实时合成的（糖果芯片、星星流行、泡泡放克、团长进行曲四种风格，有鼓、贝斯、和弦、琶音和主旋律；回声小节会自动让出主旋律，方便听清怪物唱的节奏），节拍绝对准，也没有版权问题
 - 关卡也可以用外部音频：在编辑器里把「音乐」改成「外部音频」，填好地址、BPM 和**首拍偏移**（音频里第 1 小节第 1 拍所在的秒数）
