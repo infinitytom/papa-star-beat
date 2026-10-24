@@ -58,6 +58,7 @@ async function openSelect(t = tab) {
   tab = t; mode = 'select'; show('#select'); cond.stop(); G = null;
   document.querySelectorAll('#selTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === tab)));
   $('#commTools').hidden = tab !== 'community';
+  $('#dailyNote').hidden = tab !== 'daily';
   const list = $('#levelList');
   if (tab === 'official') renderLevelList(OFFICIAL.map(l => ({ id: l.id, title: l.title, author: l.author, bpm: l.bpm, desc: l.desc, level: l })));
   else if (tab === 'daily') renderLevelList(DAILY.map((l, i) => ({ id: l.id, title: l.title + (i === todayIdx() ? ' · 今日' : ''), author: '★'.repeat(l.stars) + '☆'.repeat(4 - l.stars) + ' · 音乐 Tanner Helland', bpm: l.bpm, desc: l.desc, level: l })), '', todayIdx());

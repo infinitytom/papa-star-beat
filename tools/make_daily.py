@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-拍拍星航 · 每日演奏 — builds level charts for free (CC BY 4.0) songs by Tanner Helland.
+啪嗒星球 · 每日演奏 — builds level charts for free (CC BY 4.0) songs by Tanner Helland.
 
 Each song ships as an MP3 plus the composer's own MIDI. The MIDI gives an exact beat grid,
 so the chart is read straight off the music:

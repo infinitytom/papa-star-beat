@@ -1,4 +1,4 @@
--- 拍拍星航 PaPa Star Beat · Supabase schema
+-- 啪嗒星球 Pata Planet · Supabase schema
 -- Run once in Supabase → SQL Editor. Creates community levels + leaderboards with row-level security:
 -- anyone can read; anyone can insert (with size/range checks); nobody can edit or delete through the anon key.
 

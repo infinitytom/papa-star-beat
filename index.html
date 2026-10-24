@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>拍拍星航 PaPa Star Beat</title>
+<title>啪嗒星球 Pata Planet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
@@ -202,8 +202,8 @@ legend{padding:0 4px}
 <div id="safe"></div>
 
 <div id="title" class="panel">
-  <h1>拍拍<b>星航</b></h1>
-  <div class="sub">PAPA STAR BEAT</div>
+  <h1>啪嗒<b>星球</b></h1>
+  <div class="sub">PATA PLANET</div>
   <div class="menu">
     <button class="btn go" id="bToday">今日演奏 ♪</button>
     <button class="btn" id="bStory">教学故事</button>
@@ -225,6 +225,7 @@ legend{padding:0 4px}
   </header>
   <div id="levelCol">
     <div id="commTools" hidden><input id="commSearch" placeholder="搜索标题" aria-label="搜索关卡"><select id="commSort" aria-label="排序"><option value="new">最新</option><option value="hot">最热</option></select></div>
+    <p id="dailyNote" class="hint" hidden>每日演奏：每天轮换一首现存的免费授权音乐（CC BY 4.0）。曲库会<b>不定期</b>加入新歌，没有固定更新日。</p>
     <ul id="levelList"></ul>
   </div>
   <div id="detail"></div>
@@ -279,7 +280,7 @@ legend{padding:0 4px}
 
 <div id="support" class="panel center" hidden>
   <h2>支持作者</h2>
-  <p>拍拍星航免费游玩、开源发布。<br>如果它让你笑了一下，欢迎自愿请作者喝杯奶茶。赞赏不会解锁任何内容。</p>
+  <p>啪嗒星球免费游玩、开源发布。<br>如果它让你笑了一下，欢迎自愿请作者喝杯奶茶。赞赏不会解锁任何内容。</p>
   <img src="assets/alipay-donate.jpg" alt="作者 infinitytom 的支付宝赞赏码" width="240" height="360">
   <p class="hint">支付宝扫码 · 付款前请核对收款人 infinitytom</p>
   <p class="hint">「每日演奏」的音乐来自 <a href="https://github.com/tannerhelland/free-music" target="_blank" rel="noopener noreferrer">Tanner Helland</a>，采用 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> 授权。</p>
@@ -301,9 +302,21 @@ legend{padding:0 4px}
 
 <script type="importmap">
 { "imports": {
+  "./js/audio.js": "./js/audio.js?v=d1671587",
+  "./js/config.js": "./js/config.js?v=ab9ad279",
+  "./js/daily.js": "./js/daily.js?v=5fda3bba",
+  "./js/editor.js": "./js/editor.js?v=5c45cfcd",
+  "./js/game.js": "./js/game.js?v=a620a1bf",
+  "./js/hud.js": "./js/hud.js?v=30233901",
+  "./js/input.js": "./js/input.js?v=839d594a",
+  "./js/levels.js": "./js/levels.js?v=945d2565",
+  "./js/main.js": "./js/main.js?v=c25d6546",
+  "./js/online.js": "./js/online.js?v=a80d5640",
+  "./js/render3d.js": "./js/render3d.js?v=5b46c04e",
+  "./js/util.js": "./js/util.js?v=42e5554a",
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=c25d6546"></script>
 </body></html>
