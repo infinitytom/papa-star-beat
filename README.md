@@ -52,13 +52,13 @@
 
 three.js 通过 import map 从 jsDelivr 加载（固定版本 0.160.0）。
 
-## 在线排行榜和社区关卡（Supabase，约 5 分钟）
+## 在线排行榜和社区关卡（Supabase）
 
-不配置也能玩：排行榜会存在本机，关卡可以用 JSON 文件分享。
+官方站点已经接好了 Supabase（东京区域），排行榜和社区关卡开箱即用。自己 fork 部署时，按下面步骤换成自己的项目；`js/config.js` 留空则回到本地模式（排行榜存在本机，关卡用 JSON 文件分享）。
 
 1. 在 [supabase.com](https://supabase.com) 新建一个项目（免费版就够）
 2. 打开 SQL Editor，粘贴 `supabase/schema.sql` 的全部内容并运行
-3. 在 Project Settings → API 复制 **Project URL** 和 **anon public** key
+3. 在 Project Settings → API 复制 **Project URL** 和 **publishable key**（`sb_publishable_…`，旧项目用 anon key 也行）
 4. 填进 `js/config.js`：
    ```js
    export const SUPABASE_URL = 'https://xxxx.supabase.co';

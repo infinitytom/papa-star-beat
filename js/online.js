@@ -6,7 +6,9 @@ import { validateLevel } from './levels.js';
 export const ONLINE = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const base = (SUPABASE_URL || '').replace(/\/+$/, '') + '/rest/v1/';
 async function rq(path, opt = {}) {
-  const r = await fetch(base + path, { ...opt, headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', ...(opt.headers || {}) } });
+    // publishable keys (sb_publishable_…) go in the apikey header only; legacy anon JWTs may also be sent as a bearer token
+  const auth = SUPABASE_ANON_KEY.startsWith('eyJ') ? { Authorization: 'Bearer ' + SUPABASE_ANON_KEY } : {};
+  const r = await fetch(base + path, { ...opt, headers: { apikey: SUPABASE_ANON_KEY, ...auth, 'Content-Type': 'application/json', ...(opt.headers || {}) } });
   if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} throw new Error(m || 'HTTP ' + r.status); }
   const t = await r.text(); return t ? JSON.parse(t) : null;
 }

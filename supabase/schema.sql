@@ -37,12 +37,12 @@ drop policy if exists "levels readable" on public.levels;
 drop policy if exists "levels uploadable" on public.levels;
 drop policy if exists "scores readable" on public.scores;
 drop policy if exists "scores submittable" on public.scores;
-create policy "levels readable"   on public.levels for select using (true);
-create policy "levels uploadable" on public.levels for insert with check (plays = 0);
-create policy "scores readable"   on public.scores for select using (true);
-create policy "scores submittable" on public.scores for insert with check (true);
+create policy "levels readable"   on public.levels for select to anon, authenticated using (true);
+create policy "levels uploadable" on public.levels for insert to anon, authenticated with check (plays = 0);
+create policy "scores readable"   on public.scores for select to anon, authenticated using (true);
+create policy "scores submittable" on public.scores for insert to anon, authenticated with check (true);
 
--- play counter without granting UPDATE on the table
+-- play counter without granting UPDATE on the table (security definer on purpose: it can only add 1)
 create or replace function public.add_play(lid uuid) returns void
 language sql security definer set search_path = public as $$
   update public.levels set plays = plays + 1 where id = lid;
